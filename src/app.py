@@ -1,8 +1,8 @@
 """MD-maker Streamlit UI: drop a PDF/image, convert to Markdown via Ollama."""
 
 import io
-import subprocess
 
+import ollama
 import streamlit as st
 from dotenv import load_dotenv
 from PIL import Image
@@ -90,12 +90,19 @@ with col_left:
         st.button("⬇️ Download .md", disabled=True)
 
     st.divider()
-    if st.button(f"🛑 Stop server (port {APP_PORT})"):
-        st.warning(f"Killing process on port {APP_PORT}…")
-        subprocess.run(
-            f"lsof -ti:{APP_PORT} | xargs -r kill -9",
-            shell=True, check=False,
-        )
+    if st.button("🔄 Reset session & unload models", disabled=busy):
+        for m in {model_id, rewrite_model_id}:
+            try:
+                ollama.generate(model=m, prompt="", keep_alive=0, stream=False)
+            except Exception:
+                pass
+        for key, default in {
+            "converting": False, "result": None, "result_filename": None,
+            "pending_file_bytes": None, "pending_file_name": None,
+            "pending_is_pdf": False, "show_result": False,
+        }.items():
+            st.session_state[key] = default
+        st.rerun()
 
 with col_right:
     if uploaded is not None and not busy:
