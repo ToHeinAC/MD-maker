@@ -1,0 +1,21 @@
+[project]
+name = "md-maker"
+version = "0.1.0"
+description = "Local PDF/image to Markdown converter using Ollama vision models."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.36",
+    "ollama>=0.4.0",
+    "pymupdf>=1.24",
+    "pillow>=10.0",
+    "python-dotenv>=1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
