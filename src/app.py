@@ -162,6 +162,8 @@ with col_right:
             st.session_state.result = PAGE_SEPARATOR.join(results)
             st.session_state.result_filename = file_name
             st.session_state.show_result = False
+        except ValueError as e:
+            st.error(str(e))
         finally:
             st.session_state.converting = False
             st.session_state.pending_file_bytes = None

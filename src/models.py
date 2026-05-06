@@ -12,11 +12,19 @@ AVAILABLE_MODELS: dict[str, str] = {
     "Gemma 4 E2B (ultra-light)": "gemma4:e2b",
 }
 
+# Only these Ollama model IDs accept an `images` payload; others silently drop it.
+VISION_MODELS: frozenset[str] = frozenset({"deepseek-ocr:3b"})
+
 DEFAULT_MODEL_LABEL = "DeepSeek-OCR 3B (fast, MIT)"
 DEFAULT_REWRITE_MODEL_LABEL = "Gemma 4 E4B (fast, general)"
 
 
 def convert_image(model_id: str, pil_image: Image.Image) -> str:
+    if model_id not in VISION_MODELS:
+        raise ValueError(
+            f"'{model_id}' is a text-only model and cannot process images. "
+            "Switch the OCR model to 'DeepSeek-OCR 3B' for image/OCR conversion."
+        )
     img_b64 = image_to_base64(pil_image)
     if model_id.startswith("deepseek-ocr"):
         messages = [

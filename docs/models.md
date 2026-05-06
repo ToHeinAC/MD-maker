@@ -1,24 +1,30 @@
 # Models
 
-The UI offers three on-prem Ollama vision models. DeepSeek-OCR is the default.
+The UI offers three on-prem Ollama models. DeepSeek-OCR is the only vision-capable model and is the default OCR choice. Gemma 4 variants are **text-only** and are used solely for the PDF text-rewrite path.
 
-| Label | Tag | Size | License | Prompt format |
-|---|---|---|---|---|
-| DeepSeek-OCR 3B (fast, MIT) — default | `deepseek-ocr:3b` | ~6.7 GB | MIT | `<\|grounding\|>` user-only; temp fixed at 0 |
-| Gemma 4 E4B (fast, general) | `gemma4:e4b` | ~9.6 GB | Apache-2.0 | No system role — merge into user |
-| Gemma 4 E2B (ultra-light) | `gemma4:e2b` | ~7.2 GB | Apache-2.0 | No system role — merge into user |
+| Label | Tag | Size | License | Vision? | Role |
+|---|---|---|---|---|---|
+| DeepSeek-OCR 3B (fast, MIT) — default | `deepseek-ocr:3b` | ~6.7 GB | MIT | Yes | OCR / image conversion |
+| Gemma 4 E4B (fast, general) | `gemma4:e4b` | ~9.6 GB | Apache-2.0 | No | PDF text rewrite only |
+| Gemma 4 E2B (ultra-light) | `gemma4:e2b` | ~7.2 GB | Apache-2.0 | No | PDF text rewrite only |
+
+## Vision guard
+
+`models.VISION_MODELS` is a `frozenset` of Ollama tags that accept an `images` payload. `convert_image()` raises `ValueError` immediately if the selected OCR model is not in this set — Ollama silently drops images for text-only models, producing hallucinated output with no error.
 
 ## Prompt-format quirks
 
 ### DeepSeek-OCR
-- Uses a dedicated `<|grounding|>` token to enter document-OCR mode.
-- Does not honor a `system` role — instructions go in the user message.
-- Temperature is baked into the model params at 0; no need (and no effect) to override.
+- Expects a **short, punctuated prompt** on its own line after the image. Verbose multi-sentence instructions degrade output quality.
+- The `<|grounding|>` token activates layout-aware OCR mode; omitting it produces inferior structure.
+- Effective prompt: `<|grounding|>Convert the document to markdown.`
+- Does not honor a `system` role — instruction goes in the user message only.
+- Temperature is baked into model params at 0.
 
 ### Gemma 4
-- Multimodal but does not honor a `system` role in chat. Instructions merged into the user message produce reliable behavior.
+- Text-only; not eligible as OCR model. Used only for `rewrite_text()` (PDF text → Markdown reformatting).
 
-These two quirks are the only reason `models.convert_image` branches on model id.
+The single `if model_id.startswith("deepseek-ocr")` branch in `convert_image` handles the only vision-capable model.
 
 ## Pulling
 

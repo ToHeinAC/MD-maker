@@ -17,11 +17,9 @@ Rules:
 
 USER_PROMPT = "Convert this document page to Markdown."
 
-DEEPSEEK_PROMPT = (
-    "Transcribe every word visible in this image exactly as written. "
-    "Output only Markdown — use headings, tables, lists, and code blocks "
-    "to match the document structure. Do not paraphrase or add commentary."
-)
+# deepseek-ocr requires a short, punctuated prompt on its own line after the image.
+# The <|grounding|> token activates layout-aware OCR; omitting it degrades structure.
+DEEPSEEK_PROMPT = "<|grounding|>Convert the document to markdown."
 
 REWRITE_PROMPT = """You are reformatting extracted PDF text as Markdown.
 

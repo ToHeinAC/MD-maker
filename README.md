@@ -20,13 +20,13 @@ Open <http://localhost:8521>, drag in a PDF or image, click **📖 Convert to Ma
 
 ## Models
 
-| Label (UI) | Ollama tag | License |
-|---|---|---|
-| DeepSeek-OCR 3B (fast, MIT) — default | `deepseek-ocr:3b` | MIT |
-| Gemma 4 E4B (fast, general) | `gemma4:e4b` | Apache-2.0 |
-| Gemma 4 E2B (ultra-light) | `gemma4:e2b` | Apache-2.0 |
+| Label (UI) | Ollama tag | License | Role |
+|---|---|---|---|
+| DeepSeek-OCR 3B (fast, MIT) — default | `deepseek-ocr:3b` | MIT | OCR (vision) |
+| Gemma 4 E4B (fast, general) | `gemma4:e4b` | Apache-2.0 | PDF text rewrite |
+| Gemma 4 E2B (ultra-light) | `gemma4:e2b` | Apache-2.0 | PDF text rewrite |
 
-DeepSeek-OCR requires Ollama ≥ v0.13.0.
+DeepSeek-OCR is the only vision-capable model and is required for image/scanned-page OCR. Gemma 4 variants are text-only and used only to reformat already-extracted PDF text. DeepSeek-OCR requires Ollama ≥ v0.13.0.
 
 ## Documentation
 

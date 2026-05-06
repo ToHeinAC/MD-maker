@@ -24,10 +24,11 @@ join with "\n\n---\n\n" → display (Raw / Rendered tabs) + download .md
 
 Per-page detection: a PDF page is treated as text when `page.get_text("text").strip()` ≥ 40 chars; otherwise rasterized and OCR'd. Mixed PDFs (text + scanned pages) are handled transparently.
 
-## Per-model prompt routing (`models.convert_image`)
+## Vision guard and prompt routing (`models.convert_image`)
 
-- `deepseek-ocr:*` → single user message with `<|grounding|>` prefix; no system role. Temperature is fixed at 0 in model params.
-- `gemma4:*` → Gemma does not honor a system role; `SYSTEM_PROMPT` and `USER_PROMPT` are concatenated into one user message.
+- `VISION_MODELS` frozenset lists Ollama tags that accept an `images` payload (`deepseek-ocr:3b` only). `convert_image()` raises `ValueError` for any other model; `app.py` catches it and shows `st.error()`. Gemma 4 variants are text-only and blocked from the OCR path.
+- `deepseek-ocr:*` → `DEEPSEEK_PROMPT = "<|grounding|>Convert the document to markdown."` Short prompt + grounding token required; verbose instructions degrade output. Single user message, no system role.
+- `gemma4:*` → rewrite path only via `rewrite_text()`.
 
 See [docs/models.md](docs/models.md).
 

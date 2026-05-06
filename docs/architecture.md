@@ -7,7 +7,7 @@
 ## Module responsibilities
 
 - **`src/app.py`** — Streamlit-only concerns: two-column layout, file upload, model pickers (OCR + rewrite), DPI slider, conversion lock, live status box, gated result tabs, download, safe-exit button. No prompt strings.
-- **`src/models.py`** — single source of truth for the `{label → ollama tag}` map plus `convert_image()` (vision OCR, per-model prompt branching) and `rewrite_text()` (text → Markdown via the rewrite model).
+- **`src/models.py`** — `AVAILABLE_MODELS` map, `VISION_MODELS` guard, `convert_image()` (vision OCR, deepseek-ocr only), `rewrite_text()` (text → Markdown via rewrite model).
 - **`src/prompts.py`** — prompt constants only, per project rule (CLAUDE.md §5.3): `SYSTEM_PROMPT`, `USER_PROMPT`, `DEEPSEEK_PROMPT`, `REWRITE_PROMPT`.
 - **`src/pdf_utils.py`** — pure functions usable in any context (CLI, tests, notebook): `pdf_to_images()` for the preview pane and `iter_pdf_pages()` for the per-page text-or-image dispatcher used during conversion.
 
@@ -23,7 +23,7 @@ The Streamlit UI keeps all action buttons in the left column (Convert / Show res
 - 200–300 dpi: dense small-print or scans; slower and produces larger images that may stress the model context.
 
 ## Why no abstraction over models
-Two prompt branches (`deepseek-ocr` vs `gemma4`) is one `if`. A Strategy/Registry pattern would add files for no benefit — the entire routing is ~10 lines.
+One vision model (`deepseek-ocr:3b`) and one `if` branch in `convert_image`. A Strategy/Registry pattern would add files for no benefit. Gemma 4 variants are text-only and used only in `rewrite_text()`, which needs no branching.
 
 ## Safe exit
 Per global CLAUDE.md, the app exposes a button that runs `lsof -ti:8521 | xargs -r kill -9`. The port is hardcoded to the run port (8521), not derived from `os.getpid()`'s parent — this means it kills the streamlit server cleanly and does not affect ssh sessions.
