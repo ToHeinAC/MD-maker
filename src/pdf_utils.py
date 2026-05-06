@@ -13,7 +13,7 @@ TEXT_THRESHOLD = 40  # chars; below this a page is treated as image-only
 
 def image_to_base64(pil_image: Image.Image) -> str:
     buf = io.BytesIO()
-    pil_image.save(buf, format="PNG")
+    pil_image.convert("RGB").save(buf, format="JPEG", quality=85)
     return base64.b64encode(buf.getvalue()).decode()
 
 

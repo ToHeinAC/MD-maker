@@ -31,7 +31,7 @@ def convert_image(model_id: str, pil_image: Image.Image) -> str:
                 "images": [img_b64],
             },
         ]
-    response = ollama.chat(model=model_id, messages=messages)
+    response = ollama.chat(model=model_id, messages=messages, options={"temperature": 0})
     return response["message"]["content"]
 
 
@@ -40,5 +40,6 @@ def rewrite_text(model_id: str, text: str) -> str:
     response = ollama.chat(
         model=model_id,
         messages=[{"role": "user", "content": REWRITE_PROMPT + text}],
+        options={"temperature": 0},
     )
     return response["message"]["content"]
