@@ -8,7 +8,7 @@ requires-python = ">=3.11"
 dependencies = [
     "streamlit>=1.36",
     "ollama>=0.4.0",
-    "pymupdf>=1.24",
+    "pypdfium2>=4.0",
     "pillow>=10.0",
     "python-dotenv>=1.0",
 ]

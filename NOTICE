@@ -1,0 +1,26 @@
+MD-maker
+Copyright 2024 Tobias Hein
+Licensed under the Apache License, Version 2.0 — see LICENSE.
+
+--------------------------------------------------------------------------------
+This product includes third-party software with the following licenses:
+
+pypdfium2 — Apache-2.0
+  Python bindings for PDFium.
+  https://github.com/pypdfium2-team/pypdfium2
+
+PDFium — BSD-3-Clause
+  Open-source PDF rendering engine used by pypdfium2.
+  https://pdfium.googlesource.com/pdfium/
+
+Streamlit — Apache-2.0
+  https://github.com/streamlit/streamlit
+
+Ollama Python client — MIT
+  https://github.com/ollama/ollama-python
+
+Pillow — HPND (Historical Permission Notice and Disclaimer)
+  https://github.com/python-pillow/Pillow
+
+python-dotenv — BSD-3-Clause
+  https://github.com/theskumar/python-dotenv

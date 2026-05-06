@@ -149,7 +149,7 @@ with col_right:
                     page_no = i + 1
                     if kind == "text":
                         status.write(
-                            f"Page {page_no}/{total} — plain text extraction (PyMuPDF)"
+                            f"Page {page_no}/{total} — plain text extraction (pypdfium2)"
                         )
                         results.append(rewrite_text(rewrite_model_id, payload))
                     else:
