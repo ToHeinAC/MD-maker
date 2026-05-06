@@ -22,3 +22,18 @@ DEEPSEEK_PROMPT = (
     "<|grounding|>Convert the document to markdown. "
     "Preserve all headings, tables, lists, and structure faithfully."
 )
+
+REWRITE_PROMPT = """You are reformatting extracted PDF text as Markdown.
+
+CRITICAL RULE: Do NOT change, paraphrase, summarize, translate, or reorder
+any wording. Reproduce every word exactly. You may only:
+- Add Markdown headings (#, ##, ###) to match visual hierarchy.
+- Convert lists to Markdown bullet/numbered lists.
+- Convert tabular text to Markdown tables when clearly tabular.
+- Wrap code in fenced blocks.
+- Use $...$ / $$...$$ for math if present.
+
+Do not add commentary, preamble, or explanations. Output only Markdown.
+
+Text to reformat:
+"""

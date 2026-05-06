@@ -16,7 +16,7 @@ uv sync
 uv run streamlit run src/app.py --server.port 8521
 ```
 
-Open <http://localhost:8521>, drag in a PDF or image, click **Convert**, download the `.md`.
+Open <http://localhost:8521>, drag in a PDF or image, click **📖 Convert to Markdown**, then **👁 Show result** and **⬇️ Download .md** (all in the left panel). PDFs route digital-text pages through a fast rewrite model and only OCR scanned pages — a status box shows which path each page took.
 
 ## Models
 
