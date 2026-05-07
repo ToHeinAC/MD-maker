@@ -1,6 +1,7 @@
-"""MD-maker Streamlit UI: drop a PDF/image, convert to Markdown via Ollama."""
+"""MD-maker Streamlit UI: drop PDF(s)/image(s), convert each to Markdown via Ollama."""
 
 import io
+import zipfile
 
 import ollama
 import streamlit as st
@@ -23,14 +24,11 @@ PAGE_SEPARATOR = "\n\n---\n\n"
 
 st.set_page_config(page_title="Doc → Markdown", layout="wide")
 st.title("📄 Document → Markdown")
-st.caption("100% local via Ollama. Drop a PDF or image, get Markdown.")
+st.caption("100% local via Ollama. Drop PDF(s) or image(s), get Markdown.")
 
 st.session_state.setdefault("converting", False)
-st.session_state.setdefault("result", None)
-st.session_state.setdefault("result_filename", None)
-st.session_state.setdefault("pending_file_bytes", None)
-st.session_state.setdefault("pending_file_name", None)
-st.session_state.setdefault("pending_is_pdf", False)
+st.session_state.setdefault("results", [])       # list[{filename, content}]
+st.session_state.setdefault("pending_files", []) # list[{bytes, name, is_pdf}]
 st.session_state.setdefault("show_result", False)
 
 busy = st.session_state.converting
@@ -64,28 +62,46 @@ with col_left:
     )
 
     uploaded = st.file_uploader(
-        "Drop PDF or image here",
+        "Drop PDF(s) or image(s) here",
         type=["pdf", "png", "jpg", "jpeg", "webp", "tiff"],
+        accept_multiple_files=True,
         disabled=busy,
     )
 
     convert_clicked = st.button(
         "📖 Convert to Markdown",
         type="primary",
-        disabled=busy or uploaded is None,
+        disabled=busy or len(uploaded) == 0,
     )
 
-    has_result = bool(st.session_state.result) and not busy
+    has_result = bool(st.session_state.results) and not busy
     if st.button("👁 Show result", disabled=not has_result):
         st.session_state.show_result = True
     if has_result:
-        out_name = (st.session_state.result_filename or "document").rsplit(".", 1)[0] + ".md"
-        st.download_button(
-            "⬇️ Download .md",
-            data=st.session_state.result.encode(),
-            file_name=out_name,
-            mime="text/markdown",
-        )
+        results = st.session_state.results
+        if len(results) == 1:
+            r = results[0]
+            out_name = r["filename"].rsplit(".", 1)[0] + ".md"
+            st.download_button(
+                "⬇️ Download .md",
+                data=r["content"].encode(),
+                file_name=out_name,
+                mime="text/markdown",
+            )
+        else:
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for r in results:
+                    zf.writestr(
+                        r["filename"].rsplit(".", 1)[0] + ".md",
+                        r["content"].encode(),
+                    )
+            st.download_button(
+                "⬇️ Download .zip",
+                data=buf.getvalue(),
+                file_name="converted.zip",
+                mime="application/zip",
+            )
     else:
         st.button("⬇️ Download .md", disabled=True)
 
@@ -97,87 +113,117 @@ with col_left:
             except Exception:
                 pass
         for key, default in {
-            "converting": False, "result": None, "result_filename": None,
-            "pending_file_bytes": None, "pending_file_name": None,
-            "pending_is_pdf": False, "show_result": False,
+            "converting": False, "results": [], "pending_files": [],
+            "show_result": False,
         }.items():
             st.session_state[key] = default
         st.rerun()
 
 with col_right:
-    if uploaded is not None and not busy:
-        file_bytes = uploaded.read()
-        is_pdf = uploaded.type == "application/pdf" or uploaded.name.lower().endswith(".pdf")
+    if uploaded and not busy:
+        # Read all file bytes upfront to avoid double-read issues
+        all_files = [
+            {
+                "bytes": u.read(),
+                "name": u.name,
+                "is_pdf": u.type == "application/pdf" or u.name.lower().endswith(".pdf"),
+            }
+            for u in uploaded
+        ]
 
-        if is_pdf:
-            pages = pdf_to_images(file_bytes, dpi=dpi)
-            st.info(f"PDF detected — {len(pages)} page(s).")
+        if len(all_files) > 1:
+            names = [f["name"] for f in all_files]
+            sel_idx = st.selectbox(
+                "Preview file", range(len(names)), format_func=lambda i: names[i]
+            )
+        else:
+            sel_idx = 0
+        sel = all_files[sel_idx]
+
+        if sel["is_pdf"]:
+            pages = pdf_to_images(sel["bytes"], dpi=dpi)
+            st.info(f"{len(all_files)} file(s) selected — \"{sel['name']}\" has {len(pages)} page(s).")
             preview_idx = st.number_input(
                 "Preview page", 1, len(pages), 1, disabled=busy,
             ) - 1
             st.image(pages[preview_idx], caption=f"Page {preview_idx + 1}", use_container_width=True)
         else:
-            pages = [Image.open(io.BytesIO(file_bytes)).convert("RGB")]
-            st.image(pages[0], caption="Uploaded image", use_container_width=True)
+            st.info(f"{len(all_files)} file(s) selected.")
+            st.image(
+                Image.open(io.BytesIO(sel["bytes"])).convert("RGB"),
+                caption=sel["name"],
+                use_container_width=True,
+            )
 
         if convert_clicked:
             st.session_state.converting = True
-            st.session_state.result = None
-            st.session_state.result_filename = None
-            st.session_state.pending_file_bytes = file_bytes
-            st.session_state.pending_file_name = uploaded.name
-            st.session_state.pending_is_pdf = is_pdf
+            st.session_state.results = []
+            st.session_state.pending_files = all_files
             st.rerun()
 
     elif busy:
-        file_bytes = st.session_state.pending_file_bytes
-        is_pdf = st.session_state.pending_is_pdf
-        file_name = st.session_state.pending_file_name
-
-        if is_pdf:
-            items = list(iter_pdf_pages(file_bytes, dpi=dpi))
-        else:
-            img = Image.open(io.BytesIO(file_bytes)).convert("RGB")
-            items = [("image", img)]
-
-        results: list[str] = []
+        pending_files = st.session_state.pending_files
+        accumulated: list[dict] = []
+        total_files = len(pending_files)
         try:
             with st.status("Converting…", expanded=True) as status:
                 prog = st.progress(0.0)
-                total = len(items)
-                for i, (kind, payload) in enumerate(items):
-                    page_no = i + 1
-                    if kind == "text":
-                        status.write(
-                            f"Page {page_no}/{total} — plain text extraction (pypdfium2)"
-                        )
-                        results.append(rewrite_text(rewrite_model_id, payload))
+                for fi, pf in enumerate(pending_files):
+                    file_label = f"[{fi + 1}/{total_files}] {pf['name']}"
+                    if pf["is_pdf"]:
+                        items = list(iter_pdf_pages(pf["bytes"], dpi=dpi))
                     else:
-                        prefix = f"Page {page_no}/{total} — " if total > 1 else ""
-                        status.write(f"{prefix}OCR via {model_label}")
-                        results.append(convert_image(model_id, payload))
-                    prog.progress(page_no / total)
+                        img = Image.open(io.BytesIO(pf["bytes"])).convert("RGB")
+                        items = [("image", img)]
+                    page_results: list[str] = []
+                    total_pages = len(items)
+                    for pi, (kind, payload) in enumerate(items):
+                        page_no = pi + 1
+                        if kind == "text":
+                            status.write(
+                                f"{file_label} — Page {page_no}/{total_pages} — plain text (pypdfium2)"
+                            )
+                            page_results.append(rewrite_text(rewrite_model_id, payload))
+                        else:
+                            prefix = f"Page {page_no}/{total_pages} — " if total_pages > 1 else ""
+                            status.write(f"{file_label} — {prefix}OCR via {model_label}")
+                            page_results.append(convert_image(model_id, payload))
+                        prog.progress((fi + page_no / total_pages) / total_files)
+                    accumulated.append({
+                        "filename": pf["name"],
+                        "content": PAGE_SEPARATOR.join(page_results),
+                    })
                 status.update(label="Done.", state="complete")
-
-            st.session_state.result = PAGE_SEPARATOR.join(results)
-            st.session_state.result_filename = file_name
+            st.session_state.results = accumulated
             st.session_state.show_result = False
         except ValueError as e:
             st.error(str(e))
         finally:
             st.session_state.converting = False
-            st.session_state.pending_file_bytes = None
-            st.session_state.pending_file_name = None
+            st.session_state.pending_files = []
         st.rerun()
 
-    elif st.session_state.result is None:
+    elif not st.session_state.results:
         st.info("Upload a PDF or image to begin.")
 
-    if st.session_state.result and not busy and st.session_state.show_result:
-        combined = st.session_state.result
-        st.subheader("Result")
-        tab_raw, tab_preview = st.tabs(["Raw Markdown", "Rendered Preview"])
-        with tab_raw:
-            st.code(combined, language="markdown")
-        with tab_preview:
-            st.markdown(combined)
+    if st.session_state.results and not busy and st.session_state.show_result:
+        results = st.session_state.results
+        if len(results) == 1:
+            r = results[0]
+            st.subheader(r["filename"])
+            tab_raw, tab_preview = st.tabs(["Raw Markdown", "Rendered Preview"])
+            with tab_raw:
+                st.code(r["content"], language="markdown")
+            with tab_preview:
+                st.markdown(r["content"])
+        else:
+            names = [r["filename"] for r in results]
+            sel = st.selectbox(
+                "View result", range(len(names)), format_func=lambda i: names[i]
+            )
+            r = results[sel]
+            tab_raw, tab_preview = st.tabs(["Raw Markdown", "Rendered Preview"])
+            with tab_raw:
+                st.code(r["content"], language="markdown")
+            with tab_preview:
+                st.markdown(r["content"])
