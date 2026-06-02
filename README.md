@@ -1,6 +1,6 @@
 # MD-maker
 
-Drop a PDF or image, get a well-structured Markdown file. Runs 100% locally via [Ollama](https://ollama.com) vision models. Apache-2.0 licensed.
+Drop a PDF, DOCX or image, get a well-structured Markdown file. Runs 100% locally via [Ollama](https://ollama.com) vision models. Apache-2.0 licensed.
 
 ## Quick start
 
@@ -16,7 +16,7 @@ uv sync
 uv run streamlit run src/app.py --server.port 8521
 ```
 
-Open <http://localhost:8521>, drag in a PDF or image, click **📖 Convert to Markdown**, then **👁 Show result** and **⬇️ Download .md** (all in the left panel). PDFs route digital-text pages through a fast rewrite model and only OCR scanned pages — a status box shows which path each page took.
+Open <http://localhost:8521>, drag in a PDF, DOCX or image, click **📖 Convert to Markdown**, then **👁 Show result** and **⬇️ Download .md** (all in the left panel). PDFs route digital-text pages through a fast rewrite model and only OCR scanned pages — a status box shows which path each page took. DOCX files are converted directly to Markdown (no LLM); legacy `.doc` must be re-saved as `.docx` first.
 
 ## Models
 

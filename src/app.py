@@ -15,6 +15,7 @@ from models import (
     convert_image,
     rewrite_text,
 )
+from docx_utils import extract_docx_text
 from pdf_utils import iter_pdf_pages, pdf_to_images
 
 load_dotenv()
@@ -62,8 +63,8 @@ with col_left:
     )
 
     uploaded = st.file_uploader(
-        "Drop PDF(s) or image(s) here",
-        type=["pdf", "png", "jpg", "jpeg", "webp", "tiff"],
+        "Drop PDF(s), DOCX or image(s) here",
+        type=["pdf", "docx", "doc", "png", "jpg", "jpeg", "webp", "tiff"],
         accept_multiple_files=True,
         disabled=busy,
     )
@@ -127,6 +128,8 @@ with col_right:
                 "bytes": u.read(),
                 "name": u.name,
                 "is_pdf": u.type == "application/pdf" or u.name.lower().endswith(".pdf"),
+                "is_docx": u.name.lower().endswith(".docx"),
+                "is_doc": u.name.lower().endswith(".doc"),
             }
             for u in uploaded
         ]
@@ -147,6 +150,8 @@ with col_right:
                 "Preview page", 1, len(pages), 1, disabled=busy,
             ) - 1
             st.image(pages[preview_idx], caption=f"Page {preview_idx + 1}", use_container_width=True)
+        elif sel["is_docx"] or sel["is_doc"]:
+            st.info(f"{len(all_files)} file(s) selected — \"{sel['name']}\" (no image preview for Word documents).")
         else:
             st.info(f"{len(all_files)} file(s) selected.")
             st.image(
@@ -172,6 +177,13 @@ with col_right:
                     file_label = f"[{fi + 1}/{total_files}] {pf['name']}"
                     if pf["is_pdf"]:
                         items = list(iter_pdf_pages(pf["bytes"], dpi=dpi))
+                    elif pf["is_doc"]:
+                        raise ValueError(
+                            f"'{pf['name']}': .doc files are not supported. Re-save as .docx first."
+                        )
+                    elif pf["is_docx"]:
+                        status.write(f"{file_label} — extracting DOCX text")
+                        items = [("markdown", extract_docx_text(pf["bytes"]))]
                     else:
                         img = Image.open(io.BytesIO(pf["bytes"])).convert("RGB")
                         items = [("image", img)]
@@ -179,7 +191,9 @@ with col_right:
                     total_pages = len(items)
                     for pi, (kind, payload) in enumerate(items):
                         page_no = pi + 1
-                        if kind == "text":
+                        if kind == "markdown":
+                            page_results.append(payload)
+                        elif kind == "text":
                             status.write(
                                 f"{file_label} — Page {page_no}/{total_pages} — plain text (pypdfium2)"
                             )

@@ -10,19 +10,24 @@ Compact reference for the current implementation state. Deeper details live unde
 | `src/models.py` | `AVAILABLE_MODELS`, `DEFAULT_MODEL_LABEL`, `DEFAULT_REWRITE_MODEL_LABEL`, `convert_image()` (OCR), `rewrite_text()` (text→MD). |
 | `src/prompts.py` | All prompt strings (`SYSTEM_PROMPT`, `USER_PROMPT`, `DEEPSEEK_PROMPT`, `REWRITE_PROMPT`). |
 | `src/pdf_utils.py` | `pdf_to_images()` (preview), `iter_pdf_pages()` (per-page text-or-image), `image_to_base64()`. |
+| `src/docx_utils.py` | `extract_docx_text()` — converts a `.docx` directly to Markdown (headings, lists, tables) in document order; no LLM step. |
 
 ## Dataflow
 
 ```
-upload (PDF/image) → bytes
-    ├── PDF  → iter_pdf_pages(bytes, dpi)
-    │           ├── ('text',  str)  → rewrite_text(rewrite_model, text)  → markdown
-    │           └── ('image', img)  → convert_image(ocr_model, img)      → markdown
+upload (PDF/DOCX/image) → bytes
+    ├── PDF   → iter_pdf_pages(bytes, dpi)
+    │            ├── ('text',  str)  → rewrite_text(rewrite_model, text)  → markdown
+    │            └── ('image', img)  → convert_image(ocr_model, img)      → markdown
+    ├── DOCX  → ('markdown', str) = extract_docx_text(bytes)  → markdown (no LLM)
+    ├── DOC   → ValueError (unsupported; re-save as .docx)
     └── image → convert_image(ocr_model, img) → markdown
 join with "\n\n---\n\n" → display (Raw / Rendered tabs) + download .md
 ```
 
 Per-page detection: a PDF page is treated as text when `page.get_text("text").strip()` ≥ 40 chars; otherwise rasterized and OCR'd. Mixed PDFs (text + scanned pages) are handled transparently.
+
+DOCX: `extract_docx_text()` walks `doc.element.body` in document order, mapping heading/list styles and rendering tables as contiguous Markdown table blocks. The result is already final Markdown, so it bypasses the LLM (lossless, fast). Legacy `.doc` (binary) is rejected with a clear `ValueError`.
 
 ## Vision guard and prompt routing (`models.convert_image`)
 
@@ -43,7 +48,8 @@ See [docs/models.md](docs/models.md).
 
 - **OCR model** — selectbox; default `DeepSeek-OCR 3B`. Used for image uploads and scanned PDF pages.
 - **Rewrite model** — selectbox; default `Gemma 4 E4B`. Reformats extracted PDF text to Markdown without altering wording.
-- **DPI** — 72–300, default 150 (PDF rasterization, only used for image-only pages and the preview pane).
+- **Inputs** — `pdf`, `docx`, `doc`, `png`, `jpg`, `jpeg`, `webp`, `tiff`. `.doc` is accepted by the uploader but rejected at conversion with a re-save-as-`.docx` message.
+- **DPI** — 72–300, default 150 (PDF rasterization, only used for image-only pages and the preview pane; not used for DOCX).
 - **Port** — hardcoded to 8521 (matches CLAUDE.md and the safe-exit button).
 - **`OLLAMA_HOST`** — env var, default `http://localhost:11434`. Loaded from `.env` if present.
 
